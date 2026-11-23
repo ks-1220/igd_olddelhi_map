@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IGDTUW Campus Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&family=Fredoka:wght@500;600&family=Inter:wght@400;500;600;700&family=Mukta:wght@300;400;600&family=Nunito:wght@400;600;700&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet">
+<style>
+/* VOICE: IGDTUW's own campus, four ways — drafted, played with, lived in at dusk, and used every day
+   IDEA: the campus master-plan board in the corridor, turned into a model you can walk around
+   PICTURE: full-bleed 3D model of the real campus footprints (OpenStreetMap), lawn at the centre
+   COLOUR and TYPE: per theme — terracotta/paper + DM Serif; pastel clay + Fredoka; sandstone dusk + Tiro Devanagari; white + maroon + Inter
+   LAYOUT: fixed model, one intro card, scroll chapters that move the camera, explore mode */
+:root{--bg:#f3ece0;--ink:#1d1a16;--dim:#6f6658;--acc:#c2410c;--card:rgba(251,247,239,.94);--line:#1d1a16;--fh:"DM Serif Display",Georgia,serif;--fb:"DM Sans",system-ui,sans-serif;--fm:"DM Mono",ui-monospace,monospace;--r:0px;--sh:none}
+body[data-t=clay]{--bg:#fdebdc;--ink:#3b2f4a;--dim:#7a6d86;--acc:#ff6f8e;--card:rgba(255,255,255,.9);--line:rgba(59,47,74,.12);--fh:Fredoka,"Nunito",sans-serif;--fb:Nunito,system-ui,sans-serif;--fm:Nunito,system-ui,sans-serif;--r:24px;--sh:0 18px 40px -18px rgba(90,50,90,.35)}
+body[data-t=dusk]{--bg:#2a1630;--ink:#fbe9d8;--dim:#d8b3a8;--acc:#ffb347;--card:rgba(38,14,32,.74);--line:rgba(255,179,71,.4);--fh:"Tiro Devanagari Hindi",Georgia,serif;--fb:Mukta,system-ui,sans-serif;--fm:Mukta,system-ui,sans-serif;--r:2px;--sh:none}
+body[data-t=modern]{--bg:#f4f5f7;--ink:#14161a;--dim:#646b78;--acc:#9b1c3c;--card:#fff;--line:#e3e6ea;--fh:Inter,system-ui,sans-serif;--fb:Inter,system-ui,sans-serif;--fm:Inter,system-ui,sans-serif;--r:14px;--sh:0 10px 30px -12px rgba(20,22,26,.25)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:400 16px/1.55 var(--fb);overflow-x:clip}
+canvas#gl{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0}
+button{font:inherit;color:inherit}
+header{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:18px max(4vw,16px);pointer-events:none}
+header>*{pointer-events:auto}
+.logo{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font:600 15px/1 var(--fb);letter-spacing:.02em}
+.logo svg{width:28px;height:28px}
+.pill{border:1px solid var(--line);background:var(--card);border-radius:calc(var(--r) + 999px * (var(--r) > 0px));padding:10px 16px;min-height:44px;cursor:pointer;box-shadow:var(--sh)}
+body[data-t=plan] .pill{border-radius:0;border-color:var(--ink)}
+body[data-t=dusk] .pill{border-radius:2px}
+body[data-t=clay] .pill,body[data-t=modern] .pill{border-radius:999px}
+.pill:focus-visible,.place:focus-visible,.chip:focus-visible,input:focus-visible,.tsw button:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+/* hero */
+.hero{position:relative;z-index:5;height:100vh;min-height:600px;pointer-events:none}
+.hero>*{pointer-events:auto}
+.intro{position:absolute;background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:26px 28px;width:min(440px,calc(100vw - 32px))}
+.eyebrow{font:500 12px/1.4 var(--fm);color:var(--dim);letter-spacing:.06em}
+.intro h1{font:400 clamp(34px,4.4vw,56px)/1.02 var(--fh);margin:10px 0 12px;text-wrap:balance}
+.intro p{margin:0 0 18px;color:var(--dim);font-size:16.5px}
+.acts{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.go{background:var(--acc);color:#fff;border:0}
+body[data-t=dusk] .go{color:#2a1630}
+.replay{background:none;border:0;color:var(--dim);cursor:pointer;padding:10px 4px;min-height:44px;text-decoration:underline;text-underline-offset:3px}
+/* per-theme hero placement */
+body[data-t=plan] .intro{left:max(4vw,16px);bottom:34px;border:1.5px solid var(--ink);width:min(400px,calc(100vw - 32px));padding:22px 24px}
+body[data-t=plan] .intro h1{font-size:clamp(36px,4vw,52px)}
+body[data-t=clay] .intro{left:50%;top:84px;transform:translateX(-50%);text-align:center;width:min(620px,calc(100vw - 32px));padding:20px 26px}
+body[data-t=clay] .intro h1{font-weight:600;font-size:clamp(38px,5vw,60px);letter-spacing:-.01em}
+body[data-t=clay] .acts{justify-content:center}
+body[data-t=dusk] .intro{left:max(4vw,16px);bottom:64px;background:linear-gradient(90deg,rgba(38,14,32,.82),rgba(38,14,32,.35));border-left:2px solid var(--acc);width:min(560px,calc(100vw - 32px))}
+body[data-t=dusk] .intro h1{font-size:clamp(46px,6.4vw,92px);color:#ffe2c4}
+body[data-t=dusk] .eyebrow{font:400 18px/1.4 "Tiro Devanagari Hindi",serif;color:var(--acc);letter-spacing:0}
+body[data-t=modern] .intro{left:max(2vw,12px);bottom:80px;width:min(380px,calc(100vw - 24px));padding:20px}
+body[data-t=modern] .res{max-height:0;overflow:hidden;transition:max-height .25s}body[data-t=modern] .search:focus-within .res,body[data-t=modern] .res.has{max-height:240px;overflow:auto}
+body[data-t=modern] .intro h1{font-weight:700;font-size:26px;letter-spacing:-.02em;margin:6px 0 6px}
+body[data-t=modern] .intro p{font-size:14.5px;margin-bottom:14px}
+/* plan: drawing title block */
+.tblock{display:none;position:absolute;right:max(4vw,16px);bottom:34px;background:var(--card);border:1.5px solid var(--ink);font:400 12px/1.3 var(--fm);width:330px}
+body[data-t=plan] .tblock{display:grid;grid-template-columns:1fr 92px}
+.tblock dl{margin:0;display:grid;grid-template-columns:auto 1fr}
+.tblock dt,.tblock dd{margin:0;padding:7px 10px;border-bottom:1px solid var(--ink)}
+.tblock dt{color:var(--dim);border-right:1px solid var(--ink)}
+.tblock dl>*:nth-last-child(-n+2){border-bottom:0}
+.north{border-left:1.5px solid var(--ink);display:grid;place-items:center;padding:8px}
+.scalebar{grid-column:1/-1;border-top:1.5px solid var(--ink);padding:8px 10px;display:flex;align-items:center;gap:10px}
+.scalebar i{display:block;height:6px;width:150px;background:repeating-linear-gradient(90deg,var(--ink) 0 25%,transparent 25% 50%);border:1px solid var(--ink)}
+/* modern: search */
+.search{display:none;margin-top:4px}
+body[data-t=modern] .search{display:block}
+.search input{width:100%;font:400 16px/1.2 var(--fb);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#f6f7f9;color:var(--ink)}
+.res{display:grid;gap:2px;margin-top:8px;max-height:220px;overflow:auto}
+.res button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;background:none;padding:10px 8px;border-radius:10px;cursor:pointer;min-height:44px}
+.res button:hover{background:#f3f4f6}
+.res small{color:var(--dim)}
+body[data-t=modern] .tour{display:none}
+/* chapters */
+.ch{position:relative;z-index:5;min-height:100vh;display:flex;align-items:center;padding:12vh max(4vw,16px);pointer-events:none}
+.panel{pointer-events:auto;width:min(450px,100%);padding:26px 28px;background:var(--card);border-radius:var(--r);box-shadow:var(--sh)}
+body[data-t=plan] .panel{border:1.5px solid var(--ink)}
+body[data-t=dusk] .panel{border-left:2px solid var(--acc);background:linear-gradient(90deg,rgba(38,14,32,.86),rgba(38,14,32,.55))}
+body[data-t=modern] .ch{align-items:flex-end;padding-bottom:6vh}
+.num{font:500 12px/1 var(--fm);color:var(--acc);letter-spacing:.06em}
+body[data-t=plan] .num::before{content:"SHEET ";}
+.panel h2{font:400 clamp(26px,3vw,38px)/1.08 var(--fh);margin:10px 0 12px;text-wrap:balance}
+body[data-t=clay] .panel h2{font-weight:600}
+body[data-t=modern] .panel h2{font-weight:700;font-size:24px;letter-spacing:-.02em}
+.panel p{margin:0 0 14px;color:var(--dim)}
+body[data-t=dusk] .panel p{color:#ecd3c6;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:transparent;padding:8px 12px;cursor:pointer;min-height:40px;font:500 13px/1 var(--fb);border-radius:999px}
+body[data-t=plan] .chip{border-radius:0;border-color:var(--ink)}
+body[data-t=dusk] .chip{border-radius:2px;color:#ffd9a8}
+.chip:hover{border-color:var(--acc);color:var(--acc)}
+.end{justify-content:center;text-align:center}
+.credit{color:var(--dim);font:400 12px/1.7 var(--fm);margin-top:14px}
+.credit a{color:var(--acc)}
+/* labels */
+#labels{position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+.lb{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;opacity:0;transition:opacity .35s;will-change:transform}
+.lb.on{opacity:1}
+.lb .t{white-space:nowrap;display:flex;flex-direction:column;align-items:center}
+.lb i{width:1px;height:18px;background:var(--ink)}
+.lb .hi{display:none}
+body[data-t=plan] .lb .t{font:500 11px/1 var(--fm);background:#fffaf2;border:1px solid var(--ink);padding:5px 7px;color:var(--ink)}
+body[data-t=plan] .lb.city .t{background:transparent;border:0;color:#7d6f5c;font-size:10.5px}
+body[data-t=clay] .lb .t{font:700 12px/1 Nunito,sans-serif;background:#fff;border-radius:999px;padding:7px 12px;color:var(--ink);box-shadow:0 6px 16px -6px rgba(90,50,90,.45)}
+body[data-t=clay] .lb i{width:6px;height:6px;border-radius:50%;background:var(--acc);margin-top:5px}
+body[data-t=clay] .lb.city .t{background:rgba(255,255,255,.6);box-shadow:none;color:var(--dim);font-weight:600}
+body[data-t=dusk] .lb .t{font:400 13px/1.15 Mukta,sans-serif;color:#ffe9cf;background:rgba(42,12,30,.62);padding:5px 9px;border:1px solid rgba(255,179,71,.45)}
+body[data-t=dusk] .lb .hi{display:block;font:400 14px/1.2 "Tiro Devanagari Hindi",serif;color:var(--acc)}
+body[data-t=dusk] .lb .en{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;opacity:.85}
+body[data-t=dusk] .lb i{background:linear-gradient(rgba(255,179,71,.8),transparent)}
+body[data-t=dusk] .lb.city .t{border-color:rgba(255,200,160,.2);background:rgba(42,12,30,.35)}
+body[data-t=modern] .lb .t{font:600 12px/1 Inter,sans-serif;background:#fff;color:var(--ink);padding:7px 10px;border-radius:8px;box-shadow:0 4px 14px -4px rgba(20,22,26,.3)}
+body[data-t=modern] .lb i{width:8px;height:8px;border-radius:50%;background:var(--acc);border:2px solid #fff;margin-top:4px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+body[data-t=modern] .lb.city .t{background:transparent;box-shadow:none;color:#7b828e;font-weight:500}
+.lb.city i,.lb.road i{display:none}
+.lb.road .t{background:transparent!important;border:0!important;box-shadow:none!important;font-size:10px!important;color:var(--dim)!important;letter-spacing:.08em}
+.lb.hot .t{outline:2px solid var(--acc)}
+.lb.metro .t,.lb.gate .t{border-color:#e4002b!important}
+.lb.metro .t::before{content:"M";display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e4002b;color:#fff;font:700 10px/1 Inter,sans-serif;margin-bottom:3px}
+.lb.gate{z-index:2}.lb.gate .t{font-size:10.5px!important;padding:3px 7px 3px 3px!important;flex-direction:row!important;gap:5px;align-items:center!important;background:#fff!important;color:#1a1a1a!important;border:1.5px solid #e4002b!important;border-radius:999px!important}
+.lb.gate .t::before{content:"M";display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#e4002b;color:#fff;font:700 9px/1 Inter,sans-serif}
+body[data-t=dusk] .lb.gate .hi{color:#9b1c3c!important;font-size:12px}body[data-t=dusk] .lb.gate .en{opacity:.7}
+.lb.gate i{height:12px;width:2px;background:#e4002b!important;display:block!important}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 14px;font-size:13px;color:var(--dim)}
+.legend span::before{content:"";display:inline-block;width:18px;height:4px;margin-right:6px;vertical-align:middle;background:var(--c)}
+/* explore HUD, tooltip, menu */
+.hud{position:fixed;z-index:15;left:0;right:0;bottom:74px;padding:0 max(4vw,16px);display:none;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;pointer-events:none}
+.hud>*{pointer-events:auto}
+.hud .hint{font:500 13px/1.3 var(--fb);color:var(--dim);background:var(--card);padding:10px 14px;border-radius:var(--r)}
+body.exploring .hud{display:flex}
+body.exploring .story{display:none}
+body.exploring{overflow:hidden}
+#tip{position:fixed;z-index:16;pointer-events:none;display:none;max-width:260px;padding:12px 14px;background:var(--card);color:var(--ink);border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--line)}
+#tip b{display:block;font:400 18px/1.15 var(--fh);margin-bottom:4px}
+body[data-t=modern] #tip b,body[data-t=clay] #tip b{font-weight:700;font-size:15px}
+#tip span{font-size:14px;line-height:1.4;color:var(--dim)}
+.menu{position:fixed;inset:0;z-index:30;background:var(--bg);display:none;overflow:auto;padding:86px max(4vw,16px) 40px}
+.menu.open{display:block}
+.menu h3{font:400 30px/1.1 var(--fh);margin:0 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:10px}
+.place{background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-align:left;padding:16px 18px;cursor:pointer;min-height:44px}
+.place:hover{border-color:var(--acc)}
+.place b{display:block;font:600 15px/1.3 var(--fb)}
+.place small{display:block;margin-top:4px;font-size:14px;color:var(--dim)}
+.close{position:fixed;top:18px;right:max(4vw,16px);z-index:31}
+/* theme switcher */
+.tsw{position:fixed;z-index:25;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:999px;box-shadow:var(--sh);max-width:calc(100vw - 24px);overflow-x:auto}
+body[data-t=plan] .tsw{border-radius:0;border-color:var(--ink)}
+.tsw button{border:0;background:none;padding:9px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;font:500 13px/1 var(--fb);color:var(--dim);min-height:38px}
+.tsw button[aria-pressed=true]{background:var(--acc);color:#fff}
+body[data-t=dusk] .tsw button[aria-pressed=true]{color:#2a1630}
+body[data-t=plan] .tsw button{border-radius:0}
+.loading{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:var(--bg);color:var(--dim);transition:opacity .7s}
+.loading.gone{opacity:0;pointer-events:none}
+@media(max-width:700px){body[data-t=plan] .tblock{display:none}body[data-t=dusk] .intro{bottom:80px}.intro{padding:20px}body[data-t=clay] .intro{top:76px}.ch{padding:10vh 12px}.panel{padding:20px}}
+</style>
+</head>
+<body data-t="dusk">
+<canvas id="gl"></canvas>
+<div id="labels"></div>
+<div id="tip"><b></b><span></span></div>
+<div class="loading" id="loading">Building the campus…</div>
+
+<header>
+  <a class="logo" href="#" id="home" aria-label="Back to the top">
+    <svg viewBox="0 0 32 32" fill="none"><rect x="3" y="12" width="9" height="16" fill="var(--acc)"/><rect x="13" y="6" width="9" height="22" fill="var(--ink)"/><rect x="23" y="16" width="6" height="12" fill="var(--acc)" opacity=".6"/></svg>
+    <span>IGDTUW</span>
+  </a>
+  <button class="pill" id="menuB" aria-expanded="false">All places</button>
+</header>
+
+<div class="menu" id="menu" role="dialog" aria-label="Places on campus">
+  <button class="pill close" id="menuX">Close</button>
+  <h3>Places on campus</h3>
+  <div class="grid" id="places"></div>
+</div>
+
+<main class="story">
+  <section class="hero" data-ch="0">
+    <div class="intro">
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="title"></h1>
+      <p id="sub"></p>
+      <div class="search"><input id="q" type="search" placeholder="Search a block, hostel or department" aria-label="Search places"><div class="res" id="res"></div></div>
+      <div class="acts"><button class="pill go" id="exploreB">Explore the campus</button><button class="pill tour" id="tourB">Take the tour ↓</button><button class="replay" id="replay">Replay intro</button></div>
+    </div>
+    <div class="tblock" aria-label="Drawing title block">
+      <dl><dt>Project</dt><dd>IGDTUW campus</dd><dt>Location</dt><dd>Kashmere Gate, Delhi</dd><dt>Source</dt><dd>OpenStreetMap + master plan</dd><dt>Sheet</dt><dd>00 of 07</dd></dl>
+      <div class="north"><svg width="44" height="60" viewBox="0 0 44 60" aria-label="North arrow"><path id="narrow" d="M22 4 34 44 22 36 10 44z" fill="var(--ink)"/><text x="22" y="58" text-anchor="middle" font-family="DM Mono" font-size="11" fill="var(--ink)">N</text></svg></div>
+      <div class="scalebar"><i></i><span>0 — 100 m</span></div>
+    </div>
+  </section>
+
+  <section class="ch" data-ch="1" id="tour"><div class="panel">
+    <div class="num">01 · The campus</div>
+    <h2>One wedge of land, three roads around it.</h2>
+    <p>The campus sits on a tight wedge at Kashmere Gate. Madarsa Road wraps it on two sides, Lothian Road runs along the third, and Ambedkar University is the neighbour on the Kela Ghat Marg side.</p>
+    <div class="chips"><button class="chip" data-go="gate">IGDTUW Gate</button><button class="chip" data-go="ambedkar">Ambedkar University</button></div>
+  </div></section>
+  <section class="ch" data-ch="2"><div class="panel">
+    <div class="num">02 · Central lawn</div>
+    <h2>Everything faces the lawn.</h2>
+    <p>The central lawn is the middle of the map. The auditorium and the national flag stand on its west edge, and the departments, hostels and offices wrap around the other sides on one loop road.</p>
+    <div class="chips"><button class="chip" data-go="Auditorium">Auditorium</button></div>
+  </div></section>
+  <section class="ch" data-ch="3"><div class="panel">
+    <div class="num">03 · The hostels</div>
+    <h2>Kaveri and Krishna.</h2>
+    <p>The two girls' hostels line the Madarsa Road side, each built around an open-to-sky courtyard. The tuck shop, the creche and the start-up office sit close by.</p>
+    <div class="chips"><button class="chip" data-go="Kaveri Hostel">Kaveri Hostel</button><button class="chip" data-go="Krishna Hostel">Krishna Hostel</button></div>
+  </div></section>
+  <section class="ch" data-ch="4"><div class="panel">
+    <div class="num">04 · North blocks</div>
+    <h2>Mechanical, AI and the admin block.</h2>
+    <p>Along the top of the lawn: the CoE in Artificial Intelligence, AI and Data Science, Mechanical and Automation Engineering, and the Administration Block, which also houses Architecture and Planning.</p>
+    <div class="chips"><button class="chip" data-go="Deptt. of Mechanical and Automation Engineering">Mechanical</button><button class="chip" data-go="Administration Block and Deptt. of Architecture and Planning">Admin Block</button></div>
+  </div></section>
+  <section class="ch" data-ch="5"><div class="panel">
+    <div class="num">05 · South blocks</div>
+    <h2>ECE, IT and the long social science block.</h2>
+    <p>On the Lothian Road side: Electronics and Communication, Information Technology, Applied Sciences and Humanities, Management, the Social Science Block, the Anveshan Foundation and Rekhi CoE, and the NCC block.</p>
+    <div class="chips"><button class="chip" data-go="Department of Electronic and Communication Engineering">ECE</button><button class="chip" data-go="IT Block">IT Block</button></div>
+  </div></section>
+  <section class="ch" data-ch="6"><div class="panel">
+    <div class="num">06 · East row</div>
+    <h2>Library row.</h2>
+    <p>Small blocks on the lawn's east edge: the Academic Branch, the Digital Library, the Computer Lab, the Examination Branch and the canteen.</p>
+    <div class="chips"><button class="chip" data-go="Digital Library">Digital Library</button><button class="chip" data-go="Computer Lab">Computer Lab</button></div>
+  </div></section>
+  <section class="ch" data-ch="7"><div class="panel">
+    <div class="num">07 · Getting here</div>
+    <h2>Kashmere Gate Metro, right next door.</h2>
+    <p>Kashmere Gate is an interchange of three metro lines: the elevated Red Line and the underground Yellow and Violet lines. Gate 7 is the closest to campus, about 340 m in a straight line from the IGDTUW gate. The ISBT, Old Delhi Junction and the GPO are close by too.</p>
+    <div class="legend"><span style="--c:#e4002b">Red Line</span><span style="--c:#f2c200">Yellow Line</span><span style="--c:#8e44ad">Violet Line</span></div>
+    <div class="chips"><button class="chip" data-go="metro">Metro station</button><button class="chip" data-go="gate7">Gate 7</button><button class="chip" data-go="gate8">Gate 8</button><button class="chip" data-go="gate1">Gate 1</button><button class="chip" data-go="gate5">Gate 5</button></div>
+  </div></section>
+  <section class="ch end" data-ch="0"><div class="panel">
+    <h2>Walk it yourself.</h2>
+    <p>Drag to orbit, scroll to zoom, and click any block to fly to it.</p>
+    <button class="pill go" id="exploreB2">Explore the campus</button>
+    <div class="credit">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) · Block names from the IGDTUW master plan</div>
+  </div></section>
+</main>
+
+<div class="hud"><div class="hint">Drag to orbit · Scroll to zoom · Click a block</div><button class="pill" id="exitB">Back to the tour</button></div>
+<nav class="tsw" aria-label="Choose a look"><button data-th="plan">Master plan</button><button data-th="clay">Clay model</button><button data-th="dusk">Old Delhi dusk</button><button data-th="modern">Modern</button></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>
+{
+const BLD=`0||246,-286 284,-316 321,-269 284,-239
+0||80,-334 110,-344 105,-358 75,-349
+0|METRO|-505,320 -506,288 -407,287 -346,289 -284,300 -287,324 -282,327 -265,331 -270,343 -285,339 -290,331 -350,322 -354,332 -371,360 -381,353 -369,333 -389,333 -389,318 -404,345 -411,345 -423,367 -447,355 -457,339 -446,330 -461,329 -461,318
+0||-27,249 -24,242 -19,242 -15,239 -6,243 -2,250 8,249 11,247 15,249 16,253 7,271 2,276 -4,275 -6,266 -10,263 -21,265 -26,259 -24,254
+4||-143,508 -113,423 -176,402 -182,420 -217,408 -234,458 -198,470 -204,488
+0||-270,485 -255,439 -269,434 -258,399 -243,404 -232,372 -208,380 -246,494
+0||380,-236 389,-226 379,-217 384,-212 406,-231 402,-235 398,-231 394,-236 398,-240 392,-246
+0||69,-236 71,-228 87,-232 92,-236
+0||4,197 13,202 23,184 15,179
+0||435,127 442,135 464,115 458,107
+0||-554,-125 -545,-127 -547,-137 -556,-136
+0||-113,-162 -103,-156 -85,-187 -95,-192
+0||321,179 325,184 347,169 344,163
+0||-167,-123 -177,-105 -145,-86 -134,-104
+0||115,29 142,45 152,29 125,13
+0||235,-207 240,-201 275,-226 270,-232
+0||353,-213 364,-200 376,-210 364,-223
+0||-271,-113 -261,-114 -262,-123 -272,-122
+0||-45,342 -38,345 -33,335 -39,331
+0||-135,239 -137,243 -128,248 -126,243
+0||456,-283 467,-270 480,-281 469,-294
+0||474,-69 492,-48 525,-76 507,-97
+0||-499,-79 -491,-80 -491,-90 -500,-90
+0||-6,201 -11,210 9,219 13,210
+0||-526,-84 -517,-85 -518,-97 -527,-95
+0||-379,-208 -378,-201 -369,-201 -370,-209
+0||-88,-201 -86,-221 -94,-221 -96,-202
+0||70,127 53,152 85,172 101,147
+0||-547,110 -542,84 -556,81 -561,107
+0||-260,200 -251,201 -248,185 -257,183
+0||-222,282 -210,288 -200,269 -212,263
+0||37,221 48,204 34,195 23,212
+0||-115,-227 -115,-221 -97,-221 -97,-227
+0||-508,40 -498,41 -497,16 -507,16
+C0||77,105 104,119 112,105 85,91
+0||-156,251 -138,259 -134,250 -152,242
+0||-4,-224 0,-218 8,-223 4,-229
+0||-124,220 -114,226 -109,216 -118,211
+0||-44,171 -52,184 -20,202 -13,188
+0||315,87 331,104 339,97 324,80
+0||-86,-191 -79,-172 -48,-185 -56,-203
+0||-20,152 -26,164 -7,174 -1,161
+0||-389,-223 -388,-214 -373,-215 -373,-224
+0||-258,214 -258,231 -215,229 -216,212
+0||-439,-120 -438,-112 -426,-114 -428,-122
+4||-543,111 -523,114 -520,88 -539,86
+0||212,-171 216,-165 252,-190 248,-196
+0||-487,-50 -451,-56 -455,-83 -491,-76
+0||-343,-187 -341,-178 -329,-179 -331,-188
+0||-540,-20 -532,-20 -534,-39 -542,-39
+0||-128,-109 -111,-99 -86,-143 -103,-152
+0||-226,195 -228,201 -213,206 -211,200
+0||455,-16 470,0 480,-10 464,-25
+0||346,-268 359,-250 366,-255 353,-273
+0||-477,47 -478,55 -466,57 -465,49
+0||-159,187 -151,191 -144,177 -152,173
+0||-377,101 -356,102 -352,55 -373,53
+0||-359,-170 -344,-172 -346,-184 -361,-182
+0||-180,200 -189,220 -155,236 -146,216
+0||-150,-29 -139,-25 -130,-47 -141,-52
+0||-473,21 -454,18 -459,-33 -479,-31
+0||-138,313 -123,320 -109,291 -123,284
+0||-123,207 -119,210 -111,196 -115,194
+0||55,-231 64,-219 71,-224 63,-236
+0||-226,236 -224,246 -195,241 -197,231
+0||302,-152 311,-141 320,-149 311,-159
+0||-341,-176 -340,-166 -328,-168 -329,-177
+0||131,3 126,12 148,24 152,15
+0||255,-194 262,-185 291,-205 284,-214
+0||-51,-150 -39,-153 -43,-170 -55,-167
+0||-85,330 -61,343 -47,318 -72,305
+0||379,-293 392,-275 400,-281 387,-299
+0||-299,122 -300,129 -281,131 -281,124
+0||-232,-32 -221,-28 -212,-53 -223,-57
+0||-304,99 -277,102 -275,83 -302,81
+0||235,-221 238,-215 267,-233 263,-239
+0||-551,-82 -541,-82 -542,-92 -552,-91
+0||-188,-99 -192,-91 -177,-83 -173,-91
+0||-188,275 -197,294 -153,314 -144,294
+0||-212,157 -201,165 -192,151 -203,143
+0||-409,78 -395,81 -389,51 -403,48
+0||-277,283 -259,292 -253,279 -269,267
+0||-169,182 -162,187 -153,172 -160,168
+0||-207,-207 -191,-209 -192,-224 -208,-222
+0||215,-256 230,-236 252,-252 237,-273
+0||-386,-53 -362,-55 -370,-91 -394,-86
+0||426,-36 441,-17 457,-30 442,-48
+0||-209,-31 -214,-18 -188,-8 -183,-22
+0||47,-210 55,-215 48,-226 41,-221
+0||422,-213 426,-206 438,-217 433,-224
+0||-87,268 -92,278 -63,293 -58,283
+0||-120,336 -127,349 -65,382 -58,370
+0||-147,220 -132,227 -129,222 -144,214
+0||-223,-60 -213,-57 -208,-72 -179,-62 -175,-72 -214,-85
+0||-210,-101 -194,-94 -176,-137 -160,-130 -141,-168 -174,-182
+0||334,-220 347,-207 352,-212 347,-218 354,-225 347,-232
+0||-236,31 -227,6 -242,1 -245,9 -239,11 -245,28
+0||-473,126 -462,128 -460,117 -445,119 -439,86 -465,82
+0||-206,-43 -192,-37 -194,-34 -183,-30 -181,-34 -171,-30 -162,-51 -197,-66
+0||423,-279 443,-255 454,-264 446,-273 442,-270 439,-274 443,-277 433,-288
+0||-157,-126 -147,-121 -135,-142 -126,-138 -138,-116 -130,-112 -105,-156 -132,-171
+0||392,-255 401,-243 410,-251 407,-255 413,-260 416,-256 426,-263 417,-274
+0||-347,-12 -351,-2 -312,12 -315,20 -301,26 -292,2 -339,-15 -341,-10
+0||-357,-28 -336,-21 -335,-26 -302,-15 -293,-42 -325,-52 -328,-42 -350,-49
+0||274,-184 279,-177 292,-187 288,-193
+0||275,223 279,228 300,208 296,204
+0||200,306 207,312 216,302 210,296
+0||246,250 251,256 260,248 255,242
+0||434,-347 429,-342 450,-317 456,-322
+0||229,268 235,274 244,265 238,259
+0||297,-183 332,-204 324,-217 289,-195
+0||367,-184 372,-188 363,-198 359,-194
+0||83,-566 84,-553 117,-556 115,-569
+0||116,-530 117,-523 134,-524 134,-531
+0||27,-524 27,-516 80,-520 79,-528
+0||-58,-498 -58,-513 -72,-513 -72,-497
+0||-58,-540 -56,-533 -39,-536 -41,-544
+0||-35,-537 -22,-541 -26,-552 -39,-548
+0||-47,-522 -47,-509 11,-511 10,-524
+0||-41,-552 -16,-556 -11,-560 -13,-583 -42,-582
+0||-350,119 -315,121 -314,101 -349,99
+0||-345,144 -312,150 -310,137 -342,131
+0||-520,114 -507,117 -501,87 -514,84
+0||-353,408 -367,400 -363,394 -349,403
+0||-30,-456 -30,-465 141,-474 141,-465
+0||-62,-438 -61,-421 136,-431 135,-449 120,-448 119,-456 -2,-449 -1,-441
+0||-313,406 -318,424 -284,434 -278,417
+0||-244,-459 -244,-464 -262,-463 -262,-458
+0||-202,-428 -184,-430 -185,-446 -204,-445
+0||-147,-438 -124,-440 -125,-454 -148,-453
+0||-179,-457 -139,-460 -140,-468 -179,-465
+0||-178,-435 -151,-437 -152,-448 -179,-446
+0||-187,-448 -188,-466 -217,-464 -216,-446
+0||-266,-428 -204,-432 -205,-446 -267,-442
+0||23,537 37,501 57,508 43,545
+0||67,556 81,520 93,525 79,561
+0||-282,-476 -282,-471 -318,-471 -318,-477
+0||-403,255 -448,275 -452,268 -407,247
+0||-28,-177 5,-193 10,-182 -17,-155
+C0||-70,-94 -88,-75 -109,-94 -94,-107 -85,-100
+0||-282,135 -283,156 -292,167 -314,162 -314,156 -308,157 -306,133
+0||-295,171 -300,185 -315,195 -317,187 -328,194 -321,165
+0||-313,406 -310,399 -276,410 -278,417
+0||-315,463 -303,429 -322,423 -314,396 -297,402 -292,388 -325,377 -349,452
+0||-608,-405 -609,-426 -539,-430 -538,-417 -533,-417 -534,-433 -518,-433 -517,-418 -508,-411 -478,-413 -479,-420 -460,-421 -460,-414 -428,-415 -421,-423 -422,-439 -406,-439 -405,-416 -398,-417 -399,-440 -317,-444 -317,-449 -311,-449 -312,-454 -275,-455 -275,-452 -269,-452 -268,-436 -275,-436 -274,-422 -317,-420 -316,-411 -383,-407 -382,-395 -437,-392 -437,-387 -488,-384 -489,-389 -558,-385 -558,-397 -538,-398 -538,-408
+1||-349,419 -345,422 -340,416 -345,412
+1||-336,370 -328,373 -335,392 -343,389
+1||-347,373 -340,375 -342,380 -348,377
+1||-299,371 -291,373 -290,369 -297,367
+1||-328,350 -324,352 -326,356 -330,354
+1||-294,384 -289,385 -287,378 -292,377
+1||-395,367 -393,373 -384,368 -387,363
+10||505,-151 523,-167 542,-169 552,-157 547,-153 545,-156 525,-141 528,-137 517,-130 506,-144
+0||386,-177 393,-182 389,-187 382,-182
+0||208,-291 187,-276 193,-269 205,-277 204,-279 213,-285
+0||297,-348 292,-354 304,-363 309,-357
+C0|Department of Electronic and Communication Engineering|-44,-20 -20,-64 11,-49 -13,-4
+C5|IT Block|-7,-72 21,-62 46,-107 25,-116
+C0|Administration Block and Deptt. of Architecture and Planning|89,-22 117,-6 143,-51 117,-65 103,-54 93,-36 95,-34 92,-31 94,-30
+C0|Deptt. of Mechanical and Automation Engineering|55,36 81,-9 115,8 87,54
+C0|Kaveri Hostel|-19,115 -8,93 12,92 28,83 42,69 50,74 44,85 31,94 38,109 14,134 -15,119
+C0|Krishna Hostel|-93,59 -85,63 -74,42 -81,37 -77,30 -84,26 -68,9 -37,26 -43,41 -43,57 -32,78 -49,97 -97,65
+C0|Auditorium|-13,72 -21,66 -24,60 -17,52 -5,43 10,51 4,76
+C0|Nescafe|89,-21 85,-15 92,-11 97,-17
+C0|NCC Block|-147,29 -129,12 -117,25 -122,29 -130,23 -136,29 -130,35 -134,39
+C0|Anveshan Foundation CoE - Rekhi Foundation|-135,6 -118,16 -117,14 -111,17 -113,20 -107,23 -104,17 -99,19 -87,-3 -109,-16 -112,-9 -116,-10 -119,-3 -123,-4 -125,-1 -130,0
+C0|Social Science Block|-77,-3 -71,0 -58,-27 -55,-25 -29,-69 -39,-76 -72,-18 -70,-16
+C0|Computer Lab|64,-73 74,-68 81,-77 71,-83
+C0|Academic Branch|74,-66 80,-75 93,-68 88,-58
+C0||47,-81 43,-83 50,-94 53,-92
+C0|Digital Library|81,-75 92,-69 97,-77 86,-83
+C0||47,-81 52,-89 66,-83 59,-74
+C0|Tuck Shop|59,-74 63,-72 70,-82 66,-83
+C0||81,-10 89,-5 91,-8 83,-13
+C0|CoE - Artificial Intelligence|38,109 31,94 38,90 45,104
+C0||41,107 41,109 46,105 45,104
+C0|Tuck Shop |-48,97 -44,100 -40,94 -44,92
+C0|Creche|-6,133 -1,127 8,133 2,140
+C0|Lecture Hall|42,57 54,36 87,54 75,74`;
+
+const RDS=`t|Mahatma Gandhi Marg|-67,604 -62,589 2,418 19,384 48,348 93,309 142,266 250,198 265,173 272,151 281,99 285,48
+t||63,364 65,357 167,274 195,249 208,232 214,217 215,201 213,186 206,170 196,158 183,150 168,144 150,143 134,146 118,155 104,168 85,192 25,280
+t||115,649 98,642 82,633 67,622 53,610 41,596 30,581 8,531 5,512 3,494 11,439 17,422 25,406 63,364
+t|Mahatma Gandhi Marg|142,266 189,217 192,199 186,180 170,168 148,167 122,175 96,197
+t||241,232 247,226 273,200 282,179 285,164 287,139 285,48
+t||159,-230 217,-150 281,-70
+s||103,-251 99,-288 54,-288 -66,-265 -74,-262 -77,-257 -77,-252 -77,-242
+s|Lothian Road|-175,21 -191,36 -216,61 -235,90 -270,143 -284,170 -290,184 -296,204 -298,236 -321,294
+s|Kela Ghat Marg|314,-353 331,-369 343,-392 345,-402 357,-447 358,-473
+s|Shyama Prasad Mukherji Marg|-873,-429 -861,-433 -850,-437 -827,-453 -801,-461 -744,-467 -658,-477 -426,-493 -201,-493 -108,-484
+s|Kela Ghat Marg|344,-478 329,-453 313,-399 307,-383 297,-367
+t|Mahatma Gandhi Marg|406,-157 455,-181 514,-207 577,-251 617,-270 638,-279
+s|Lothian Road|-306,296 -284,244 -283,236 -286,205 -282,190 -263,147 -208,66 -166,30
+t||-907,-198 -795,-203 -150,-240 -74,-241
+s||-62,589 -40,571 -1,449 2,418
+t|Nicholson Road|-284,170 -1056,14
+s||-97,207 -59,227 -28,244
+r||-501,-75 -661,-40
+t|Mahatma Gandhi Marg|227,-3 195,68 192,80 190,90 192,117 202,129 228,137 253,127 260,119 266,107 271,91 285,48
+r|More Sarai Road|251,-671 158,-607 52,-561 -90,-514
+t|Mahatma Gandhi Marg|227,-3 160,91 96,197 24,319 -38,464
+s||-145,521 -130,515 -105,431 -105,427 -107,422 -110,419 -126,410 -179,392 -195,398
+s||-217,463 -224,485 -220,495 -109,531 -101,525 -90,500 -87,467 -85,464 -83,462 -69,460 -57,474 -56,526
+t||25,280 -2,331 -20,378 -31,407 -34,435
+u|H.C. Sen Marg|-71,-778 -87,-699 -91,-577 -99,-540
+s||-80,-492 -66,-407 -85,-353 -229,-321 -233,-332 -245,-331
+t|Mahatma Gandhi Marg|-38,464 -82,600
+t||63,364 73,360 241,232
+u|Madarsa Road|-250,-14 -191,3 -171,27 -41,113 -17,133 1,148 14,151 19,148 53,113 59,106 84,72 217,-150
+s||-499,235 -460,225 -438,205 -401,222
+s||-252,401 -247,386 -245,379 -249,371 -334,342
+s||-200,414 -217,463
+s||-34,435 -50,438 -54,437 -77,427 -170,374 -187,378 -200,414
+r|Gokhale Road|-531,442 -504,389 -503,384 -502,380 -511,347 -497,319 -491,288 -489,249 -506,228 -522,220 -560,212 -617,208
+s||-744,-467 -728,-452 -722,-449 -696,-444 -550,-451 -523,-451 -512,-448 -505,-442 -501,-434 -494,-426 -487,-424 -478,-423 -440,-431 -418,-456
+s|Shyama Prasad Mukherji Marg|-108,-484 -59,-479 353,-501
+s|Kela Ghat Marg|353,-501 323,-399 312,-379 140,-253
+s|Lothian Road|-342,333 -348,342 -353,349 -376,369 -399,385 -479,408 -531,442
+s|Lothian Road|-493,454 -488,431 -480,421 -471,414 -379,386 -344,357 -322,326 -306,296
+s|Nityanand Marg|-127,566 -418,475 -424,474 -444,477
+s||99,570 112,548 111,512 173,378 262,252 247,226
+s||181,-507 179,-557 182,-565 192,-576 372,-607 405,-604
+s||236,-296 244,-285 294,-216
+s|Lothian Road|-166,30 -59,-77 -6,-130 10,-155 48,-188 116,-233
+t||-74,-241 -66,-235 98,-241 112,-241 138,-235 159,-230
+t|Ram Lal Chandhok Marg|-66,-235 -18,-141
+s||288,-238 324,-263 325,-270 289,-322 284,-330
+s||304,-65 317,-51 371,7
+t|Mahatma Gandhi Marg|642,-320 503,-245 469,-222 458,-201
+t|Ring Road|483,-212 473,-207 458,-201
+t||140,-253 103,-251 -67,-245 -74,-241
+t|Mahatma Gandhi Marg|285,48 287,29 291,-24 296,-46 313,-82 337,-109 364,-129 406,-157
+t|Mahatma Gandhi Marg|458,-201 420,-183 398,-170 371,-151 337,-124 281,-70 227,-3
+s|Kela Ghat Marg|154,-237 314,-353 347,-450 358,-473 370,-502
+s|Lothian Road|112,-241 -2,-158 -72,-81 -175,21
+s|Shyama Prasad Mukherji Marg|-301,-504 -347,-505 -430,-506 -605,-494`;
+
+const CAMPUS=[[-159,25],[-59,-71],[13,-143],[159,-63],[69,87],[5,143],[-49,99]];
+const LAWN=[[-11,32],[-15,22],[-16,12],[-8,0],[15,-41],[23,-54],[33,-72],[58,-61],[71,-54],[87,-45],[75,-21],[60,5],[45,34],[37,44],[27,49],[15,50],[-6,40]];
+const AMBEDKAR=[[13,-143],[64,-194],[76,-201],[95,-213],[115,-225],[125,-226],[130,-222],[134,-219],[142,-227],[146,-230],[151,-229],[156,-227],[213,-149],[159,-63]];
+
+/* short names, heights (m) and notes from the master plan */
+const INFO={
+ "Kaveri Hostel":["Kaveri Hostel",15,"Girls' hostel on the Madarsa Road side, built around an open-to-sky courtyard."],
+ "Krishna Hostel":["Krishna Hostel",15,"Girls' hostel west of the lawn with its own open-to-sky courtyard; the tuck shop is next door."],
+ "Auditorium":["Auditorium",13,"On the lawn's west edge, beside the national flag."],
+ "Deptt. of Mechanical and Automation Engineering":["Mechanical & Automation",16,"Department of Mechanical and Automation Engineering, on the north side of the lawn."],
+ "Lecture Hall":["Lecture Hall",14,"Teaching block beside Mechanical; the master plan places AI & Data Science along this row."],
+ "Administration Block and Deptt. of Architecture and Planning":["Admin · Architecture",17,"Administration Block, also home to the Department of Architecture and Planning, around an open-to-sky court."],
+ "Department of Electronic and Communication Engineering":["Dept. of ECE",15,"Department of Electronics and Communication Engineering, on the lawn's south side."],
+ "IT Block":["IT Block",18,"Information Technology, with Applied Sciences & Humanities and Management alongside."],
+ "Social Science Block":["Social Science Block",11,"The long block running along the Lothian Road side."],
+ "Anveshan Foundation CoE - Rekhi Foundation":["Anveshan · Rekhi CoE",10,"Anveshan Foundation and the CoE supported by the Rekhi Foundation."],
+ "NCC Block":["NCC Block",7,"National Cadet Corps block at the far western corner."],
+ "Computer Lab":["Computer Lab",7,"Part of the row of offices on the lawn's east edge."],
+ "Academic Branch":["Academic Branch",8,"Academic section office, east of the lawn."],
+ "Digital Library":["Digital Library",9,"The digital library, next to the Academic Branch."],
+ "CoE - Artificial Intelligence":["CoE · AI",9,"Centre of Excellence in Artificial Intelligence, by the creche and the start-up office."],
+ "Tuck Shop":["Tuck Shop",4,"Snacks and stationery by the east row."],
+ "Tuck Shop ":["Tuck Shop",4,"Next to Krishna Hostel."],
+ "Nescafe":["Nescafé",4,"Coffee counter by the Admin Block."],
+ "Creche":["Creche",5,"Creche by Kaveri Hostel."]
+};
+const EXTRA_LABELS=[
+ {k:"lawn",n:"Central Lawn",x:29,y:-3,h:2,pri:9},
+ {k:"gate",n:"IGDTUW Gate",x:-33,y:103,h:3,pri:8},
+ {k:"ambedkar",n:"Ambedkar University",x:120,y:-150,h:4,pri:5,cls:"city"},
+ {k:"metro",n:"Kashmere Gate Metro",x:-440,y:310,h:19,pri:11,cls:"metro"},
+ {n:"ISBT Kashmere Gate",x:-178,y:450,h:16,pri:4,cls:"city"},
+ {n:"Old Delhi Junction",x:-440,y:-420,h:8,pri:3,cls:"city"},
+ {n:"Delhi GPO",x:284,y:-278,h:9,pri:3,cls:"city"},
+ {n:"St. Mary's Church",x:215,y:-543,h:8,pri:2,cls:"city"},
+ {n:"Lothian Road",x:-80,y:-73,h:0,pri:2,cls:"road"},
+ {n:"Madarsa Road",x:-115,y:63,h:0,pri:2,cls:"road"},
+ {n:"Kela Ghat Marg",x:235,y:-295,h:0,pri:1,cls:"road"},
+ {n:"Nicholson Road",x:-560,y:100,h:0,pri:1,cls:"road"}
+];
+/* camera stops per chapter (three.js coords: x, y up, z = -north) */
+const STOPS=[
+ {p:[-330,300,330],l:[-150,0,-130]},
+ {p:[-200,150,215],l:[0,0,0]},
+ {p:[-95,85,110],l:[30,0,5]},
+ {p:[-175,85,15],l:[-25,8,-80]},
+ {p:[-40,80,110],l:[90,8,0]},
+ {p:[80,75,-60],l:[-45,6,40]},
+ {p:[5,48,30],l:[82,5,72]},
+ {p:[-150,330,-700],l:[-290,0,-250]}
+];
+
+/* ---------- themes ---------- */
+const THEMES={
+ plan:{name:'Master plan',metroDeck:0xe9e2d6,metroStation:0xcdbfa9,sky:[0xf7f1e6,0xf1e8da],fog:[500,1700],ground:0xf1e8da,grid:[0xd8cbb4,0xe5dccb,.7],hemi:[0xffffff,0xd9c7a8,.75],sun:[0xfff3e0,1.0,[-.75,.85,-.6]],shadow:true,
+  campus:[0xd9733a],city:0xebe3d6,cityEdge:[0xb8a98f,.55],campusEdge:[0x6b2f10,.55],ribbon:0x9a3412,wash:[0xe58a4e,.12],lawn:0x86b35f,lawnEdge:0x4f7a35,tree:0x6f9a4c,treeDetail:1,road:[0xfdfaf4,0xf8f3ea],roadEdge:0xcbbda6,
+  traffic:null,lamps:false,bloom:0,flag:true,pin:false,ease:'cubic',
+  copy:{eyebrow:'Indira Gandhi Delhi Technical University for Women',title:'IGDTUW Campus',sub:'A working model of the campus at Kashmere Gate, drawn from OpenStreetMap and the master plan board.'}},
+ clay:{name:'Clay model',metroDeck:0xfff4ec,metroStation:0xffc2cf,sky:[0xffd3bd,0xfde6d6],fog:[420,1500],ground:0xfbe2d2,grid:null,hemi:[0xfff4ec,0xe9b9c8,.95],sun:[0xffd39a,.9,[.45,.6,-.9]],shadow:true,
+  campus:[0xc4b1ff,0x9fe0c9,0xffd59a,0xffb3c4,0xb3d6ff,0xf6c7ff],city:0xf2d9cc,cityEdge:null,campusEdge:null,ribbon:0xff7d98,wash:[0xff9fb3,.18],lawn:0x9fdca7,lawnEdge:0x7cc98a,tree:0x74c486,treeDetail:2,road:[0xfff6ef,0xfcefe5],roadEdge:null,
+  traffic:{cols:[0xff7d98,0x8f7bff,0x46c2a0,0xffb347],size:4,add:false},lamps:false,bloom:0,flag:true,pin:false,ease:'back',stop0:{p:[-360,330,360],l:[-170,70,-150]},
+  copy:{eyebrow:'Kashmere Gate, Delhi',title:'Welcome to IGDTUW',sub:'A tiny model of the whole campus. Scroll for a tour, or jump in and poke around.'}},
+ dusk:{name:'Old Delhi dusk',metroDeck:0x6a3a50,metroStation:0x8e3b4c,sky:[0x2a1640,0x9a4a62],fog:[380,1350],ground:0x2b1a2a,grid:[0x4a2a40,0x3a2234,.35],hemi:[0x8a6bb0,0x2a1420,.75],sun:[0xff9a6a,.75,[.9,.35,.2]],shadow:false,windows:true,
+  campus:[0x7a4a3c],city:0x45283a,cityEdge:[0x6a3a4a,.35],campusEdge:[0xffb347,.35],ribbon:0xffb347,wash:[0xff8a3d,.22],lawn:0x23423a,lawnEdge:0x4f8a6a,tree:0x1f3a2c,treeDetail:1,road:[0x3d2434,0x352030],roadEdge:null,
+  traffic:{cols:[0xfff1d0,0xff5a4a,0xffc070],size:3.4,add:true},lamps:true,bloom:.8,flag:true,pin:false,ease:'cubic',
+  copy:{eyebrow:'इंदिरा गांधी दिल्ली महिला प्रौद्योगिकी विश्वविद्यालय',title:'IGDTUW',sub:'The campus at Kashmere Gate, as the street lamps come on.'}},
+ modern:{name:'Modern',metroDeck:0xffffff,metroStation:0xe6e9ee,sky:[0xffffff,0xf2f3f6],fog:[520,1800],ground:0xeceef2,grid:[0xe2e5ea,0xe9ecf0,.6],hemi:[0xffffff,0xd5dae3,.72],sun:[0xffffff,.62,[-.7,.9,-.6]],shadow:true,
+  campus:[0xffffff],city:0xdfe3e9,cityEdge:[0xc4cad3,.55],campusEdge:[0xc3c8d0,.6],ribbon:0x9b1c3c,wash:[0x9b1c3c,.06],lawn:0xc7e6bf,lawnEdge:0x9fd093,tree:0x9ccf92,treeDetail:1,road:[0xffffff,0xfafbfc],roadEdge:null,
+  traffic:{cols:[0x9aa3b2,0x9b1c3c],size:3,add:false},lamps:false,bloom:0,flag:false,pin:true,ease:'cubic',
+  copy:{eyebrow:'IGDTUW · Kashmere Gate',title:'Campus map',sub:'Find any block, department or hostel, or take the short tour.'}}
+};
+const METRO={gates:[[1,-404,283],[3,-571,410],[4,-585,468],[5,-427,540],[6,-392,470],[7,-270,343],[8,-333,373]],
+ red:"-918,338 -887,343 -858,348 -813,349 -766,346 -676,333 -589,318 -519,311 -412,310 -351,316 -300,322 -262,330 -235,336 -193,352 -152,371 -113,393 -73,416 -32,437 2,450 94,480 167,512 630,711",
+ yellow:"-234,-140 -302,67 -414,316 -472,437 -499,520 -515,570 -604,806",
+ violet:"311,-417 287,-394 -92,-102 -110,-79 -268,188 -429,435 -451,482"};
+METRO.gates.forEach(g=>EXTRA_LABELS.push({k:'gate'+g[0],n:'Gate '+g[0],x:g[1],y:g[2],h:5,pri:10,cls:'gate'}));
+EXTRA_LABELS.push({n:"Red Line (elevated)",x:-120,y:385,h:12,pri:1,cls:"road"},{n:"Yellow Line (underground)",x:-330,y:130,h:0,pri:1,cls:"road"},{n:"Violet Line (underground)",x:-190,y:60,h:0,pri:1,cls:"road"});
+const HI={"Kashmere Gate Metro":"कश्मीरी गेट मेट्रो","Kaveri Hostel":"कावेरी छात्रावास","Krishna Hostel":"कृष्णा छात्रावास","Auditorium":"सभागार","Mechanical & Automation":"यांत्रिक एवं स्वचालन","Lecture Hall":"व्याख्यान कक्ष","Admin · Architecture":"प्रशासनिक भवन","Dept. of ECE":"इलेक्ट्रॉनिकी एवं संचार","IT Block":"आईटी ब्लॉक","Social Science Block":"सामाजिक विज्ञान","Anveshan · Rekhi CoE":"अन्वेषण","NCC Block":"एनसीसी","Computer Lab":"कंप्यूटर लैब","Academic Branch":"शैक्षणिक शाखा","Digital Library":"डिजिटल पुस्तकालय","CoE · AI":"एआई उत्कृष्टता केंद्र","Tuck Shop":"टक शॉप","Nescafé":"नेस्कैफ़े","Creche":"शिशुगृह","Central Lawn":"केंद्रीय लॉन","IGDTUW Gate":"मुख्य द्वार","Ambedkar University":"आंबेडकर विश्वविद्यालय","Kashmere Gate":"कश्मीरी गेट","ISBT Kashmere Gate":"आईएसबीटी","Old Delhi Junction":"पुरानी दिल्ली जंक्शन","Delhi GPO":"दिल्ली जीपीओ","St. Mary's Church":"सेंट मैरी चर्च"};
+METRO.gates.forEach(g=>HI["Gate "+g[0]]="गेट "+g[0]);
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const pts=s=>s.split(' ').map(q=>q.split(',').map(Number));
+const hash=n=>{const s=Math.sin(n*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+const inPoly=(x,y,P)=>{let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[a,b]=P[i],[e,f]=P[j];if((b>y)!=(f>y)&&x<(e-a)*(y-b)/(f-b)+a)c=!c}return c};
+const cen=P=>{let x=0,y=0;P.forEach(p=>{x+=p[0];y+=p[1]});return[x/P.length,y/P.length]};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const loading=$('#loading');
+const TK=(location.hash||'').slice(1);const TN=THEMES[TK]?TK:'dusk';const TH=THEMES[TN];
+document.body.dataset.t=TN;
+$('#eyebrow').textContent=TH.copy.eyebrow;$('#title').textContent=TH.copy.title;$('#sub').textContent=TH.copy.sub;
+document.querySelectorAll('.tsw button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.th===TN);b.addEventListener('click',()=>{if(b.dataset.th===TN)return;location.hash=b.dataset.th;location.reload()})});
+addEventListener('hashchange',()=>{const k=location.hash.slice(1);if(THEMES[k]&&k!==TN)location.reload()});
+
+if(!window.THREE){loading.textContent='Could not load the 3D library. Check your connection and reload.'}
+else{
+let renderer=null;
+try{renderer=new THREE.WebGLRenderer({canvas:$('#gl'),antialias:true,powerPreference:'high-performance'})}catch(e){}
+if(!renderer){loading.textContent='The 3D map needs WebGL, which is off in this browser.'}
+else{
+const V=(x,y,z)=>new THREE.Vector3(x,y,z),C=c=>new THREE.Color(c);
+const small=innerWidth<700;
+renderer.setPixelRatio(Math.min(devicePixelRatio,small?1.5:2));renderer.setSize(innerWidth,innerHeight);
+renderer.setClearColor(C(TH.sky[1]),1);
+if(TH.shadow){renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap}
+const scene=new THREE.Scene();scene.fog=new THREE.Fog(TH.sky[1],TH.fog[0],TH.fog[1]);
+const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,1,5000);
+camera.position.set(...STOPS[0].p);const look=V(...STOPS[0].l);camera.lookAt(look);
+
+/* sky dome */
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(3000,32,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{a:{value:C(TH.sky[0])},b:{value:C(TH.sky[1])}},
+ vertexShader:'varying float vy;void main(){vy=normalize(position).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+ fragmentShader:'uniform vec3 a,b;varying float vy;void main(){gl_FragColor=vec4(mix(b,a,smoothstep(0.,.45,vy)),1.);}'})));
+
+/* lights */
+scene.add(new THREE.HemisphereLight(TH.hemi[0],TH.hemi[1],TH.hemi[2]));
+const sun=new THREE.DirectionalLight(TH.sun[0],TH.sun[1]);const sd=V(...TH.sun[2]).normalize();
+sun.position.copy(sd.clone().multiplyScalar(900));sun.target.position.set(0,0,0);scene.add(sun,sun.target);
+if(TH.shadow){sun.castShadow=true;const S=sun.shadow.camera;S.left=-460;S.right=460;S.top=460;S.bottom=-460;S.near=100;S.far=2200;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0006;sun.shadow.normalBias=.4;S.updateProjectionMatrix()}
+
+/* ground */
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),new THREE.MeshLambertMaterial({color:TH.ground}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.05;ground.receiveShadow=true;scene.add(ground);
+if(TH.grid){const g=new THREE.GridHelper(2400,240,TH.grid[0],TH.grid[1]);g.material.transparent=true;g.material.opacity=TH.grid[2];g.position.y=.01;scene.add(g)}
+
+/* building materials */
+let nightMat=null;const uTime={value:0};
+if(TH.windows){
+ nightMat=(base,lit,glow)=>new THREE.ShaderMaterial({uniforms:{uTime,uLit:{value:lit},uGlow:{value:glow},uBase:{value:C(base)},uFog:{value:C(TH.sky[1])},uSun:{value:sd},uFogR:{value:new THREE.Vector2(...TH.fog)}},
+  vertexShader:'attribute float aH;attribute float aS;varying vec3 vW;varying vec3 vN;varying float vY;varying float vH;varying float vS;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);vY=position.y;vH=aH;vS=aS;gl_Position=projectionMatrix*viewMatrix*w;}',
+  fragmentShader:`uniform float uTime,uLit,uGlow;uniform vec3 uBase,uFog,uSun;uniform vec2 uFogR;varying vec3 vW;varying vec3 vN;varying float vY;varying float vH;varying float vS;
+float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+void main(){vec3 n=normalize(vN);float sh=.45+.55*max(dot(n,uSun),0.);vec3 col=uBase*sh;
+ if(abs(n.y)<.5){vec2 t=normalize(vec2(-n.z,n.x));float u=dot(vW.xz,t);vec2 cell=vec2(floor(u/2.8),floor((vY-1.2)/3.3));vec2 f=vec2(fract(u/2.8),fract((vY-1.2)/3.3));
+  float win=step(.26,f.x)*step(f.x,.74)*step(.25,f.y)*step(f.y,.8)*step(1.2,vY)*step(vY,vH-1.);
+  float r=h(cell+vec2(vS*13.1,vS*7.7)+floor(n.xz*3.));float lit=step(1.-uLit,r);
+  vec3 wc=mix(vec3(1.,.72,.38),vec3(1.,.55,.25),h(cell.yx+vS));
+  col=mix(col,lit*wc*1.25+(1.-lit)*uBase*.35,win);
+  col+=vec3(1.,.55,.3)*smoothstep(vH-.6,vH,vY)*uGlow*.35;}
+ else{col=uBase*.85;}
+ float d=length(vW-cameraPosition);gl_FragColor=vec4(mix(col,uFog,smoothstep(uFogR.x,uFogR.y,d)),1.);}`});
+}
+
+const B=BLD.trim().split('\n').map((l,i)=>{const[a,n,c]=l.split('|');return{campus:a[0]==='C',lv:+a.replace('C',''),key:n,pts:pts(c),i}});
+const buildings=[],campusMeshes=[];const lawnC=cen(LAWN);
+const matCity=TH.windows?nightMat(TH.city,.2,.2):new THREE.MeshLambertMaterial({color:TH.city});
+const metroMat=TH.windows?nightMat(TH.metroStation,.45,.6):new THREE.MeshLambertMaterial({color:TH.metroStation});
+const campusMats=TH.campus.map(c=>TH.windows?nightMat(c,.6,1):new THREE.MeshLambertMaterial({color:c}));
+B.forEach(b=>{
+ const info=INFO[b.key];
+ const isMetro=b.key==='METRO';const h=isMetro?17:info?info[1]:b.campus?6+hash(b.i)*4:(b.lv?b.lv*3.3:6+Math.floor(hash(b.i)*5)*3.3);
+ const g=new THREE.ExtrudeGeometry(new THREE.Shape(b.pts.map(p=>new THREE.Vector2(p[0],p[1]))),{depth:h,bevelEnabled:false});g.rotateX(-Math.PI/2);
+ if(TH.windows){const n=g.attributes.position.count;g.setAttribute('aH',new THREE.BufferAttribute(new Float32Array(n).fill(h),1));g.setAttribute('aS',new THREE.BufferAttribute(new Float32Array(n).fill(hash(b.i+.5)*10),1))}
+ const m=new THREE.Mesh(g,isMetro?metroMat:b.campus?campusMats[Math.floor(hash(b.i+2)*campusMats.length)]:matCity);
+ m.castShadow=m.receiveShadow=!!TH.shadow;
+ const ec=b.campus?TH.campusEdge:TH.cityEdge;let em=null;
+ if(ec){em=new THREE.LineBasicMaterial({color:ec[0],transparent:true,opacity:ec[1]});m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g,25),em))}
+ const c=cen(b.pts);const o={m,em,h,c,dist:Math.hypot(c[0]-lawnC[0],c[1]-lawnC[1]),campus:b.campus,key:b.key,info,ec};
+ m.scale.y=.001;scene.add(m);buildings.push(o);if(b.campus){m.userData.o=o;campusMeshes.push(m)}
+});
+
+/* flat ribbons: roads, boundary */
+const strip=(P,w,y)=>{const pos=[],idx=[];P.forEach((p,i)=>{const a=P[Math.max(0,i-1)],b=P[Math.min(P.length-1,i+1)];let dx=b[0]-a[0],dz=-(b[1]-a[1]);const L=Math.hypot(dx,dz)||1;const nx=-dz/L*w/2,nz=dx/L*w/2;pos.push(p[0]+nx,y,-p[1]+nz,p[0]-nx,y,-p[1]-nz);if(i){const k=i*2;idx.push(k-2,k-1,k,k-1,k+1,k)}});const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g};
+const roads=RDS.trim().split('\n').map(l=>{const[t,n,c]=l.split('|');return{t,n,p:pts(c)}});
+const rMain=new THREE.MeshLambertMaterial({color:TH.road[0],side:THREE.DoubleSide}),rMin=new THREE.MeshLambertMaterial({color:TH.road[1],side:THREE.DoubleSide});
+roads.forEach(r=>{const main=r.t==='t'||!!r.n;const m=new THREE.Mesh(strip(r.p,main?9:5,.06),main?rMain:rMin);m.receiveShadow=!!TH.shadow;scene.add(m);
+ if(TH.roadEdge){const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(r.p.map(p=>V(p[0],.1,-p[1]))),new THREE.LineBasicMaterial({color:TH.roadEdge,transparent:true,opacity:.6}));scene.add(l)}});
+const ring=CAMPUS.concat([CAMPUS[0]]);
+const ribbon=new THREE.Mesh(strip(ring,1.8,.2),new THREE.MeshBasicMaterial({color:TH.ribbon,side:THREE.DoubleSide}));scene.add(ribbon);
+const ribLen=(ring.length-1)*6;ribbon.geometry.setDrawRange(0,0);
+const wash=new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(CAMPUS.map(p=>new THREE.Vector2(p[0],p[1])))),new THREE.MeshBasicMaterial({color:TH.wash[0],transparent:true,opacity:TH.wash[1],depthWrite:false,blending:TH.windows?THREE.AdditiveBlending:THREE.NormalBlending}));
+wash.rotation.x=-Math.PI/2;wash.position.y=.08;scene.add(wash);
+const amb=new THREE.Line(new THREE.BufferGeometry().setFromPoints(AMBEDKAR.concat([AMBEDKAR[0]]).map(p=>V(p[0],.2,-p[1]))),new THREE.LineDashedMaterial({color:TH.windows?0xd8a08a:0x8a8f99,dashSize:4,gapSize:3,transparent:true,opacity:.7}));amb.computeLineDistances();scene.add(amb);
+
+/* lawn */
+const lawn=new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(LAWN.map(p=>new THREE.Vector2(p[0],p[1])))),new THREE.MeshLambertMaterial({color:TH.lawn}));
+lawn.rotation.x=-Math.PI/2;lawn.position.y=.15;lawn.receiveShadow=!!TH.shadow;scene.add(lawn);
+scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(LAWN.concat([LAWN[0]]).map(p=>V(p[0],.2,-p[1]))),new THREE.LineBasicMaterial({color:TH.lawnEdge})));
+
+/* Kashmere Gate metro */
+const metroG=new THREE.Group();scene.add(metroG);
+{const red=pts(METRO.red);const DECK=11;
+ const deckMat=TH.windows?new THREE.MeshLambertMaterial({color:TH.metroDeck,emissive:0x2a1020}):new THREE.MeshLambertMaterial({color:TH.metroDeck});
+ const deck=new THREE.Mesh(strip(red,8.5,DECK),deckMat);deck.castShadow=deck.receiveShadow=!!TH.shadow;metroG.add(deck);
+ const under=new THREE.Mesh(strip(red,8.5,DECK-1.2),deckMat);metroG.add(under);
+ [4.3,-4.3].forEach(off=>{const P=red.map((p,i)=>{const a=red[Math.max(0,i-1)],b=red[Math.min(red.length-1,i+1)];const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;return V(p[0]-dy/L*off,DECK+.35,-(p[1]+dx/L*off))});
+  metroG.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(P),new THREE.LineBasicMaterial({color:0xe4002b})))});
+ const pierG=new THREE.CylinderGeometry(1.1,1.3,DECK-1.2,10);pierG.translate(0,(DECK-1.2)/2,0);const pierM=new THREE.MeshLambertMaterial({color:TH.metroDeck});
+ const path={P:red.map(p=>V(p[0],0,-p[1]))};path.cum=[0];for(let i=1;i<path.P.length;i++)path.cum.push(path.cum[i-1]+path.P[i].distanceTo(path.P[i-1]));path.L=path.cum[path.cum.length-1];
+ for(let d=10;d<path.L;d+=32){let i=1;while(i<path.cum.length-1&&path.cum[i]<d)i++;const a=path.P[i-1],b=path.P[i],f=(d-path.cum[i-1])/((path.cum[i]-path.cum[i-1])||1);
+  if(a.x+(b.x-a.x)*f>-505&&a.x+(b.x-a.x)*f<-265)continue;const pr=new THREE.Mesh(pierG,pierM);pr.position.set(a.x+(b.x-a.x)*f,0,a.z+(b.z-a.z)*f);pr.castShadow=!!TH.shadow;metroG.add(pr)}
+ [["yellow",0xf2c200],["violet",0x8e44ad]].forEach(([k,c])=>{const P=pts(METRO[k]).map(p=>V(p[0],.35,-p[1]));const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(P),new THREE.LineDashedMaterial({color:c,dashSize:6,gapSize:4}));l.computeLineDistances();metroG.add(l)});
+ const kG=new THREE.BoxGeometry(6,4.2,5);kG.translate(0,2.1,0);const kM=new THREE.MeshLambertMaterial({color:TH.metroStation}),capM=new THREE.MeshBasicMaterial({color:0xe4002b});
+ METRO.gates.forEach(g=>{const k=new THREE.Mesh(kG,kM);k.position.set(g[1],0,-g[2]);k.castShadow=!!TH.shadow;const cap=new THREE.Mesh(new THREE.BoxGeometry(6.4,.7,5.4),capM);cap.position.y=4.5;k.add(cap);metroG.add(k)});
+ metroG.scale.y=.001}
+
+/* national flag by the auditorium */
+let flagCloth=null;
+if(TH.flag){const fg=new THREE.Group();fg.position.set(6,0,-34);scene.add(fg);
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.22,.3,26,8),new THREE.MeshLambertMaterial({color:TH.windows?0xe8d8c8:0xf4f4f4}));pole.position.y=13;pole.castShadow=!!TH.shadow;fg.add(pole);
+ const cv=document.createElement('canvas');cv.width=300;cv.height=200;const x=cv.getContext('2d');
+ x.fillStyle='#FF9933';x.fillRect(0,0,300,67);x.fillStyle='#ffffff';x.fillRect(0,67,300,66);x.fillStyle='#138808';x.fillRect(0,133,300,67);
+ x.strokeStyle='#000080';x.lineWidth=3;x.beginPath();x.arc(150,100,28,0,7);x.stroke();for(let k=0;k<24;k++){const a=k/24*Math.PI*2;x.beginPath();x.moveTo(150,100);x.lineTo(150+Math.cos(a)*28,100+Math.sin(a)*28);x.lineWidth=1.4;x.stroke()}
+ const tex=new THREE.CanvasTexture(cv);const geo=new THREE.PlaneGeometry(9,6,18,1);geo.translate(4.5,0,0);
+ flagCloth=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({map:tex,side:THREE.DoubleSide}));flagCloth.position.y=22.6;flagCloth.castShadow=!!TH.shadow;fg.add(flagCloth);flagCloth.userData.base=geo.attributes.position.array.slice()}
+
+/* modern: location pin on the lawn */
+let pin=null,pinRing=null;
+if(TH.pin){pin=new THREE.Group();pin.position.set(lawnC[0],0,-lawnC[1]);scene.add(pin);const pm=new THREE.MeshLambertMaterial({color:0x9b1c3c});
+ const head=new THREE.Mesh(new THREE.SphereGeometry(4.2,24,16),pm);head.position.y=22;const tip=new THREE.Mesh(new THREE.ConeGeometry(3.4,10,24),pm);tip.rotation.x=Math.PI;tip.position.y=16;const dotw=new THREE.Mesh(new THREE.SphereGeometry(1.6,16,12),new THREE.MeshBasicMaterial({color:0xffffff}));dotw.position.set(0,22,3.6);
+ head.castShadow=tip.castShadow=true;pin.add(head,tip,dotw);
+ pinRing=new THREE.Mesh(new THREE.RingGeometry(4,5.2,48),new THREE.MeshBasicMaterial({color:0x9b1c3c,transparent:true,opacity:.6,side:THREE.DoubleSide}));pinRing.rotation.x=-Math.PI/2;pinRing.position.set(lawnC[0],.3,-lawnC[1]);scene.add(pinRing);pin.scale.setScalar(.001)}
+
+/* trees */
+const bbox=B.map(b=>{let a=1e9,c=-1e9,d=1e9,e=-1e9;b.pts.forEach(p=>{a=Math.min(a,p[0]);c=Math.max(c,p[0]);d=Math.min(d,p[1]);e=Math.max(e,p[1])});return[a-3,c+3,d-3,e+3,b.pts]});
+const inAnyB=(x,y)=>bbox.some(q=>x>q[0]&&x<q[1]&&y>q[2]&&y<q[3]&&inPoly(x,y,q[4]));
+const tr=[];
+for(let s=1;tr.length<230&&s<7000;s++){const x=-160+hash(s)*320,y=-145+hash(s+.37)*290;if(!inPoly(x,y,CAMPUS)||inAnyB(x,y))continue;if(inPoly(x,y,LAWN)&&hash(s+.9)>.06)continue;tr.push([x,y,1.8+hash(s+.2)*1.7])}
+for(let k=0;k<170;k++){const x=-460+hash(k+900)*920,y=-460+hash(k+1300)*920;if(inPoly(x,y,CAMPUS)||inAnyB(x,y))continue;tr.push([x,y,1.5+hash(k)*1.5])}
+const treeM=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,TH.treeDetail),new THREE.MeshLambertMaterial({color:TH.tree,flatShading:TH.treeDetail<2}),tr.length);
+treeM.castShadow=!!TH.shadow;scene.add(treeM);const tmp=new THREE.Object3D();
+
+/* traffic + lamps */
+const paths=roads.map(r=>{const P=r.p.map(p=>V(p[0],0,-p[1]));const cum=[0];for(let i=1;i<P.length;i++)cum.push(cum[i-1]+P[i].distanceTo(P[i-1]));return{P,cum,L:cum[cum.length-1],main:r.t==='t'||!!r.n}});
+const along=(t,d)=>{d=((d%t.L)+t.L)%t.L;let i=1;while(i<t.cum.length-1&&t.cum[i]<d)i++;const a=t.P[i-1],b=t.P[i];const f=(d-t.cum[i-1])/((t.cum[i]-t.cum[i-1])||1);return[a.x+(b.x-a.x)*f,a.z+(b.z-a.z)*f,b.x-a.x,b.z-a.z]};
+const dotTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.45,'rgba(255,255,255,.9)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+let cars=null,traffic=[],tPos=null;
+if(TH.traffic){paths.forEach(t=>{const k=Math.max(1,Math.round(t.L/(t.main?55:130)));for(let j=0;j<k;j++){const n=traffic.length;traffic.push({t,o:hash(n+1)*t.L,s:(t.main?10:6)*(hash(n+7)>.5?1:-1)*(.7+hash(n)*.6),c:Math.floor(hash(n+3)*TH.traffic.cols.length)})}});
+ const g=new THREE.BufferGeometry();tPos=new Float32Array(traffic.length*3);const col=new Float32Array(traffic.length*3);traffic.forEach((q,i)=>{const c=C(TH.traffic.cols[q.c]);col.set([c.r,c.g,c.b],i*3)});
+ g.setAttribute('position',new THREE.BufferAttribute(tPos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+ cars=new THREE.Points(g,new THREE.PointsMaterial({size:TH.traffic.size,map:dotTex,vertexColors:true,transparent:true,alphaTest:TH.traffic.add?0:.4,depthWrite:false,blending:TH.traffic.add?THREE.AdditiveBlending:THREE.NormalBlending}));scene.add(cars)}
+let lamps=null;
+if(TH.lamps){const L=[];paths.forEach(t=>{for(let d=0;d<t.L;d+=24){const q=along(t,d);const l=Math.hypot(q[2],q[3])||1;const side=(Math.floor(d/24)%2?1:-1)*(t.main?6:4);L.push([q[0]-q[3]/l*side,q[1]+q[2]/l*side])}});
+ L.sort((a,b)=>Math.hypot(a[0]-lawnC[0],a[1]+lawnC[1])-Math.hypot(b[0]-lawnC[0],b[1]+lawnC[1]));
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(L.flatMap(p=>[p[0],5,p[1]]),3));g.setDrawRange(0,0);
+ lamps=new THREE.Points(g,new THREE.PointsMaterial({size:5,map:dotTex,color:0xffc070,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));lamps.userData.n=L.length;scene.add(lamps)}
+
+/* render path */
+let composer=null,bloom=null;
+if(TH.bloom>0){composer=new THREE.EffectComposer(renderer);composer.addPass(new THREE.RenderPass(scene,camera));bloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),TH.bloom,.5,.55);composer.addPass(bloom)}
+
+/* labels */
+const layer=$('#labels');const labels=[];
+const addLabel=(name,pos,pri,cls,key)=>{const d=document.createElement('div');d.className='lb '+(cls||'');d.innerHTML='<span class="t"><span class="hi"></span><span class="en"></span></span><i></i>';d.querySelector('.en').textContent=name;d.querySelector('.hi').textContent=HI[name]||'';layer.appendChild(d);labels.push({d,pos,pri,cls,key,w:0,h:0})};
+buildings.filter(o=>o.campus&&o.info).forEach(o=>addLabel(o.info[0],V(o.c[0],o.h,-o.c[1]),o.h>=13?7:o.h>=8?5:3,'',o.key));
+EXTRA_LABELS.forEach(e=>addLabel(e.n,V(e.x,e.h,-e.y),e.pri,e.cls,e.k));
+const measure=()=>labels.forEach(L=>{L.w=L.d.offsetWidth;L.h=L.d.offsetHeight});measure();document.fonts&&document.fonts.ready.then(measure);
+
+/* places: menu + search */
+const placeList=buildings.filter(o=>o.campus&&o.info&&o.key!=='Tuck Shop ');
+$('#places').innerHTML=placeList.map(o=>`<button class="place" data-go="${o.key}"><b>${o.info[0]}</b><small>${o.info[2]}</small></button>`).join('')+'<button class="place" data-go="metro"><b>Kashmere Gate Metro</b><small>Interchange for the Red, Yellow and Violet lines.</small></button>'+METRO.gates.map(g=>`<button class="place" data-go="gate${g[0]}"><b>Metro Gate ${g[0]}</b><small>Kashmere Gate metro station entry/exit.</small></button>`).join('');
+const q=$('#q'),res=$('#res');
+const runSearch=()=>{const s=q.value.trim().toLowerCase();const list=placeList.filter(o=>!s||(o.info[0]+' '+o.key+' '+o.info[2]).toLowerCase().includes(s)).slice(0,s?8:4);
+ res.innerHTML=list.length?list.map(o=>`<button data-go="${o.key}"><span>${o.info[0]}</span><small>${o.h>=13?'Large block':'Building'}</small></button>`).join(''):'<small style="padding:8px;color:var(--dim)">No match. Try "hostel", "library" or "ECE".</small>'};
+q.addEventListener('input',()=>{runSearch();res.classList.toggle('has',!!q.value.trim())});runSearch();
+
+/* intro animation */
+let t0=performance.now()/1000,done=false;
+const replay=()=>{t0=performance.now()/1000;done=false};$('#replay').addEventListener('click',replay);
+const easeC=x=>x<=0?0:x>=1?1:1-Math.pow(1-x,3);
+const easeB=x=>{if(x<=0)return 0;if(x>=1)return 1;const c1=1.9,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const ease=TH.ease==='back'?easeB:easeC;
+
+/* camera */
+if(TH.stop0){STOPS[0]=TH.stop0;camera.position.set(...STOPS[0].p);look.set(...STOPS[0].l);camera.lookAt(look)}
+const goal={p:V(...STOPS[0].p),l:V(...STOPS[0].l)};let exploring=false,flying=0;
+const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enabled=false;controls.enableDamping=true;controls.dampingFactor=.07;controls.maxPolarAngle=1.36;controls.minDistance=30;controls.maxDistance=1100;controls.screenSpacePanning=false;
+const setStop=i=>{const S=STOPS[i]||STOPS[0];goal.p.set(...S.p);goal.l.set(...S.l)};
+const focus=key=>{let p,l;const o=buildings.find(b=>b.key===key);
+ if(o){l=V(o.c[0],o.h*.5,-o.c[1]);const dir=V(o.c[0]-lawnC[0],0,-(o.c[1]-lawnC[1]));if(dir.length()<1)dir.set(-1,0,1);dir.normalize().applyAxisAngle(V(0,1,0),.5);p=l.clone().add(dir.multiplyScalar(-75)).setY(o.h+50)}
+ else{const e=EXTRA_LABELS.find(x=>x.k===key);if(!e)return;l=V(e.x,0,-e.y);p=l.clone().add(/^gate|metro/.test(key)?V(90,170,150):V(-70,65,75))}
+ goal.p.copy(p);goal.l.copy(l);flying=1};
+const enterExplore=key=>{exploring=true;document.body.classList.add('exploring');controls.target.copy(look);controls.enabled=true;if(key)focus(key);else{goal.p.set(-170,140,175);goal.l.set(lawnC[0],0,-lawnC[1]);flying=1}};
+const tip=$('#tip');let hovered=null;
+const unhover=()=>{if(hovered.em)hovered.em.color.set(hovered.ec[0]);hovered.m.material=hovered.mat0||hovered.m.material;hovered=null;renderer.domElement.style.cursor=''};
+const exitExplore=()=>{exploring=false;document.body.classList.remove('exploring');controls.enabled=false;tip.style.display='none';if(hovered)unhover();scrollTo({top:0});setStop(0)};
+$('#exploreB').addEventListener('click',()=>enterExplore());$('#exploreB2').addEventListener('click',()=>enterExplore());$('#exitB').addEventListener('click',exitExplore);
+$('#tourB').addEventListener('click',()=>$('#tour').scrollIntoView({behavior:reduce?'auto':'smooth'}));
+$('#home').addEventListener('click',e=>{e.preventDefault();if(exploring)exitExplore();else scrollTo({top:0,behavior:'smooth'})});
+const menu=$('#menu'),menuB=$('#menuB');
+const closeMenu=()=>{menu.classList.remove('open');menuB.setAttribute('aria-expanded','false')};
+menuB.addEventListener('click',()=>{menu.classList.add('open');menuB.setAttribute('aria-expanded','true');const f=menu.querySelector('.place');f&&f.focus()});
+$('#menuX').addEventListener('click',closeMenu);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;closeMenu();enterExplore(b.dataset.go)});
+addEventListener('keydown',e=>{if(e.key==='Escape'){if(menu.classList.contains('open'))closeMenu();else if(exploring)exitExplore()}});
+const io=new IntersectionObserver(es=>{if(exploring)return;es.forEach(en=>{if(en.isIntersecting)setStop(+en.target.dataset.ch)})},{rootMargin:'-45% 0px -45% 0px'});
+document.querySelectorAll('[data-ch]').forEach(s=>io.observe(s));
+
+/* hover + click */
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(-9,-9);let par={x:0,y:0},down=null;
+const hiMat=TH.windows?null:new THREE.MeshLambertMaterial({color:TN==='modern'?0xf3d6dd:TN==='plan'?0xf2b07f:0xffffff});
+addEventListener('pointermove',e=>{mouse.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);par.x=mouse.x;par.y=mouse.y;
+ if(!exploring)return;ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(campusMeshes,false)[0];const o=hit&&hit.object.userData.o;
+ if(o!==hovered){if(hovered)unhover();if(o){hovered=o;o.mat0=o.m.material;if(hiMat)o.m.material=hiMat;if(o.em)o.em.color.set(TH.ribbon);renderer.domElement.style.cursor='pointer'}}
+ if(hovered){const inf=hovered.info||['Campus building',0,'One of the smaller blocks on campus.'];tip.querySelector('b').textContent=inf[0];tip.querySelector('span').textContent=inf[2];tip.style.display='block';tip.style.left=Math.min(e.clientX+16,innerWidth-276)+'px';tip.style.top=Math.min(e.clientY+16,innerHeight-130)+'px'}else tip.style.display='none'});
+renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+renderer.domElement.addEventListener('pointerup',e=>{if(!exploring||!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;if(hovered&&hovered.key)focus(hovered.key)});
+controls.addEventListener('start',()=>{flying=0});
+
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer){composer.setSize(innerWidth,innerHeight);bloom.resolution.set(innerWidth,innerHeight)};measure()});
+
+/* loop */
+const proj=new THREE.Vector3();let last=performance.now()/1000;loading.classList.add('gone');
+const frame=()=>{requestAnimationFrame(frame);
+ const now=performance.now()/1000,dt=Math.min(.05,now-last);last=now;uTime.value=now;const T=reduce?99:now-t0;
+ if(!done){
+  buildings.forEach(o=>{const st=(o.campus?.5:1.3)+o.dist/(o.campus?240:420);o.m.scale.y=Math.max(.001,ease((T-st)/1.0))});
+  ribbon.geometry.setDrawRange(0,Math.floor(easeC((T-.2)/1.4)*ribLen/6)*6);
+  tr.forEach((t,i)=>{const k=Math.max(.001,ease((T-1.2-hash(i)*1.4)/.7))*t[2];tmp.position.set(t[0],t[2]*.85+.4,-t[1]);tmp.scale.set(k,k*1.05,k);tmp.updateMatrix();treeM.setMatrixAt(i,tmp.matrix)});treeM.instanceMatrix.needsUpdate=true;
+  if(pin)pin.scale.setScalar(Math.max(.001,easeB((T-2.2)/.8)));metroG.scale.y=Math.max(.001,ease((T-1.9)/1.0));
+  if(lamps)lamps.geometry.setDrawRange(0,Math.floor(lamps.userData.n*Math.max(0,Math.min(1,(T-2.4)/2.6))));
+  if(T>5.4)done=true}
+ if(flagCloth){const p=flagCloth.geometry.attributes.position,b=flagCloth.userData.base;for(let i=0;i<p.count;i++){const x=b[i*3];p.array[i*3+2]=Math.sin(x*.7-now*3.2)*x*.09}p.needsUpdate=true}
+ if(pin){pin.children[0].position.y=22+Math.sin(now*2)*.8;const s=1+((now*.6)%1)*2.2;pinRing.scale.setScalar(s);pinRing.material.opacity=.6*(1-((now*.6)%1))}
+ if(cars){traffic.forEach((q,i)=>{const a=along(q.t,q.o+now*q.s);tPos[i*3]=a[0];tPos[i*3+1]=1;tPos[i*3+2]=a[1]});cars.geometry.attributes.position.needsUpdate=true}
+ if(!exploring){const k=1-Math.pow(.0015,dt);const px=reduce?0:par.x*12,py=reduce?0:par.y*7;camera.position.lerp(V(goal.p.x+px,goal.p.y+py,goal.p.z-px*.4),k*.9);look.lerp(goal.l,k);camera.lookAt(look)}
+ else{if(flying){const k=1-Math.pow(.02,dt);camera.position.lerp(goal.p,k);controls.target.lerp(goal.l,k);if(camera.position.distanceTo(goal.p)<1.5)flying=0}controls.update();look.copy(controls.target)}
+ composer?composer.render():renderer.render(scene,camera);
+ const show=T>2.8;const placed=[];const W=innerWidth,H=innerHeight;
+ labels.map(L=>{proj.copy(L.pos).project(camera);const x=(proj.x+1)/2*W,y=(1-proj.y)/2*H;return{L,x,y,ok:proj.z<1&&x>-60&&x<W+60&&y>60&&y<H+20,dist:camera.position.distanceTo(L.pos)}})
+ .sort((a,b)=>(b.L.pri-a.L.pri)||(a.dist-b.dist)).forEach(r=>{const L=r.L;const always=L.cls==='gate'||L.cls==='metro';let vis=show&&r.ok&&(L.cls==='gate'?r.dist<2200:L.cls==='metro'?r.dist<1500:L.cls==='city'?r.dist<1300:L.cls==='road'?r.dist<700:r.dist<(L.pri>=7?950:L.pri>=5?560:330));
+  const box=[r.x-L.w/2-3,r.y-L.h-3,r.x+L.w/2+3,r.y];if(vis&&!always&&placed.some(p=>box[0]<p[2]&&box[2]>p[0]&&box[1]<p[3]&&box[3]>p[1]))vis=false;if(vis)placed.push(box);
+  L.d.classList.toggle('on',vis);L.d.classList.toggle('hot',!!(hovered&&hovered.key===L.key));if(vis)L.d.style.transform=`translate(${(r.x-L.w/2).toFixed(1)}px,${(r.y-L.h).toFixed(1)}px)`});
+};
+frame();
+}}
+}
+</script>
+</body>
+</html>
